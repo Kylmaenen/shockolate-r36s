@@ -24,19 +24,22 @@ jobs:
           install: |
             apt-get update
             apt-get install -y \
-              cmake g++ git \
+              cmake g++ \
               libsdl2-dev libsdl2-mixer-dev \
               libfluidsynth-dev \
-              libasound2-dev
+              libalsa-ocaml-dev libasound2-dev \
+              git
           run: |
             mkdir build && cd build
-            cmake ..
+            cmake .. -DENABLE_FLUIDSYNTH=OFF
             make -j$(nproc)
 
       - name: Collect binary
         run: |
           mkdir -p artifact/SystemShock
           find /home/runner -name systemshock -type f 2>/dev/null | \
+            head -1 | xargs -I{} cp {} artifact/SystemShock/ || true
+          find /tmp -name systemshock -type f 2>/dev/null | \
             head -1 | xargs -I{} cp {} artifact/SystemShock/ || true
 
       - name: Upload artifact
