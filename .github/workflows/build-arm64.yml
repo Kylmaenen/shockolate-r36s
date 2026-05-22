@@ -1,0 +1,52 @@
+name: Build systemshock for ARM64
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-arm64:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (for running aarch64 containers)
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Run build inside aarch64 container
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          echo "Starting ARM64 build in docker container"
+          docker run --rm --platform linux/arm64 -v "${GITHUB_WORKSPACE}/systemshock":/src -w /src ubuntu:22.04 bash -lc '
+            set -e
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update
+            apt-get install -y cmake build-essential zip libsdl2-dev libsdl2-mixer-dev libfluidsynth-dev libasound2-dev pkg-config
+            rm -rf /src/build/* || true
+            /usr/bin/cmake -DENABLE_SDL2=ON -DENABLE_SOUND=ON -DENABLE_FLUIDSYNTH=ON -S/src -B/src/build
+            /usr/bin/make -C /src/build -j$(nproc)
+            if [ -f /src/build/systemshock ]; then
+              mkdir -p /tmp/art/bin /tmp/art/data
+              cp /src/build/systemshock /tmp/art/bin/
+              if [ -f /src/README_PORTMASTER.md ]; then
+                cp /src/README_PORTMASTER.md /tmp/art/
+              fi
+              cd /tmp/art && zip -r "${GITHUB_WORKSPACE}/shockolate-arm64.zip" .
+            else
+              echo "Build did not produce /src/build/systemshock" >&2
+              ls -la /src/build || true
+              exit 2
+            fi
+          '
+
+      - name: Upload shockolate-arm64.zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: shockolate-arm64
+          path: shockolate-arm64.zip
