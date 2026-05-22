@@ -30,23 +30,17 @@ jobs:
               libasound2-dev \
               pkg-config
           run: |
-            echo "=== SDL2 pkg-config check ==="
-            pkg-config --libs sdl2 || true
-            pkg-config --libs SDL2_mixer || true
-            echo "=== SDL2 files ==="
-            find /usr -name "libSDL2*" 2>/dev/null
-            echo "=== Building ==="
+            ln -s /usr/include/SDL2/SDL.h /usr/include/SDL.h || true
+            ln -s /usr/include/SDL2 /usr/include/SDL2_compat || true
             mkdir build && cd build
             cmake .. \
-              -DSDL2_INCLUDE_DIR=$(pkg-config --variable=includedir sdl2)/SDL2 \
-              -DSDL2_LIBRARY=$(pkg-config --variable=libdir sdl2)/libSDL2.so \
-              -DSDL2MAIN_LIBRARY=$(pkg-config --variable=libdir sdl2)/libSDL2main.a
-            make -j$(nproc)
-
+              -DCMAKE_BUILD_PARALLEL_LEVEL=1
+            make -j1
+      
       - name: Collect binary
         run: |
           mkdir -p artifact/SystemShock
-          find /home/runner -name systemshock -type f 2>/dev/null | \
+          find / -name systemshock -type f 2>/dev/null | \
             head -1 | xargs -I{} cp {} artifact/SystemShock/ || true
 
       - name: Upload artifact
