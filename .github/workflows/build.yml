@@ -1,0 +1,59 @@
+name: Build Shockolate for ARM
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Shockolate
+        uses: actions/checkout@v3
+        with:
+          repository: Interrupt/systemshock
+          submodules: recursive
+
+      - name: Install ARM cross-compiler and deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-aarch64-linux-gnu \
+            g++-aarch64-linux-gnu \
+            cmake \
+            libsdl2-dev \
+            libsdl2-mixer-dev
+
+      - name: Download ARM SDL2 libs
+        run: |
+          sudo dpkg --add-architecture arm64
+          sudo sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports jammy main universe" | sudo tee -a /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt-get install -y \
+            libsdl2-dev:arm64 \
+            libsdl2-mixer-dev:arm64
+
+      - name: Build
+        run: |
+          mkdir build && cd build
+          cmake .. \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++
+          make -j$(nproc)
+
+      - name: Package
+        run: |
+          mkdir -p artifact/SystemShock
+          cp build/systemshock artifact/SystemShock/
+          cp -r data artifact/SystemShock/ 2>/dev/null || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: shockolate-arm64
+          path: artifact/
