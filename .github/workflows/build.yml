@@ -23,18 +23,21 @@ jobs:
           distro: ubuntu22.04
           install: |
             apt-get update
-            apt-get install -y cmake g++ libsdl2-dev libsdl2-mixer-dev
+            apt-get install -y \
+              cmake g++ git \
+              libsdl2-dev libsdl2-mixer-dev \
+              libfluidsynth-dev \
+              libasound2-dev
           run: |
             mkdir build && cd build
             cmake ..
             make -j$(nproc)
-            cp systemshock /systemshock
 
-      - name: Package artifact
+      - name: Collect binary
         run: |
           mkdir -p artifact/SystemShock
-          docker cp $(docker ps -lq):/systemshock artifact/SystemShock/systemshock || \
-          find / -name systemshock -type f 2>/dev/null | head -1 | xargs -I{} cp {} artifact/SystemShock/
+          find /home/runner -name systemshock -type f 2>/dev/null | \
+            head -1 | xargs -I{} cp {} artifact/SystemShock/ || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
