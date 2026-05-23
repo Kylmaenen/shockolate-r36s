@@ -18,32 +18,28 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Run build inside aarch64 container
-        env:
-          GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           set -euo pipefail
           echo "Starting ARM64 build in docker container"
-          docker run --rm --platform linux/arm64 -v "${GITHUB_WORKSPACE}/systemshock":/src -w /src ubuntu:22.04 bash -lc '
-            set -e
+          docker run --rm --platform linux/arm64 -v "${{ github.workspace }}/systemshock":/src -w /src ubuntu:22.04 bash -lc "set -e
             export DEBIAN_FRONTEND=noninteractive
             apt-get update
             apt-get install -y cmake build-essential zip libsdl2-dev libsdl2-mixer-dev libfluidsynth-dev libasound2-dev pkg-config
             rm -rf /src/build/* || true
             /usr/bin/cmake -DENABLE_SDL2=ON -DENABLE_SOUND=ON -DENABLE_FLUIDSYNTH=ON -S/src -B/src/build
-            /usr/bin/make -C /src/build -j$(nproc)
+            /usr/bin/make -C /src/build -j\$(nproc)
             if [ -f /src/build/systemshock ]; then
               mkdir -p /tmp/art/bin /tmp/art/data
               cp /src/build/systemshock /tmp/art/bin/
               if [ -f /src/README_PORTMASTER.md ]; then
                 cp /src/README_PORTMASTER.md /tmp/art/
               fi
-              cd /tmp/art && zip -r "${GITHUB_WORKSPACE}/shockolate-arm64.zip" .
+              cd /tmp/art && zip -r "${{ github.workspace }}/shockolate-arm64.zip" .
             else
               echo "Build did not produce /src/build/systemshock" >&2
               ls -la /src/build || true
               exit 2
-            fi
-          '
+            fi"
 
       - name: Upload shockolate-arm64.zip
         uses: actions/upload-artifact@v4
