@@ -11,50 +11,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install ARM64 cross-build dependencies
-        run: |
-          sudo dpkg --add-architecture arm64
-          sudo apt-get update
-          sudo apt-get install -y \
-            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu cmake make zip pkg-config \
-            libsdl2-dev:arm64 libsdl2-mixer-dev:arm64 libfluidsynth-dev:arm64 libasound2-dev:arm64 \
-            libgl1-mesa-dev:arm64 libglu1-mesa-dev:arm64 libx11-dev:arm64 libxrandr-dev:arm64 libxext-dev:arm64 \
-            libxinerama-dev:arm64 libxrender-dev:arm64 libxt-dev:arm64 libxss-dev:arm64 libxxf86vm-dev:arm64
+      - name: Set up QEMU (for running aarch64 containers)
+        uses: docker/setup-qemu-action@v2
 
-      - name: Configure ARM64 cross build
-        run: |
-          cd systemshock
-          mkdir -p build
-          export CC=aarch64-linux-gnu-gcc
-          export CXX=aarch64-linux-gnu-g++
-          export PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig
-          export PKG_CONFIG_ALLOW_CROSS=1
-          cmake -S . -B build \
-            -DCMAKE_SYSTEM_NAME=Linux \
-            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
-            -DCMAKE_C_COMPILER=$CC \
-            -DCMAKE_CXX_COMPILER=$CXX \
-            -DCMAKE_SYSROOT=/usr/aarch64-linux-gnu \
-            -DCMAKE_FIND_ROOT_PATH=/usr/aarch64-linux-gnu \
-            -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
-            -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
-            -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
-            -DENABLE_SDL2=ON \
-            -DENABLE_SOUND=ON \
-            -DENABLE_FLUIDSYNTH=ON
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-      - name: Build systemshock
+      - name: Copy build script
         run: |
-          cd systemshock/build
-          make -j$(nproc)
+          chmod +x .github/scripts/arm_build.sh
 
-      - name: Package artifact
+      - name: Run build inside aarch64 container
         run: |
-          mkdir -p artifact/bin artifact/data
-          cp systemshock artifact/bin/
-          cp ../README_PORTMASTER.md artifact/
-          cd artifact
-          zip -r ../shockolate-arm64.zip .
+          echo "Starting ARM64 docker build"
+          docker run --rm --platform linux/arm64 -v "${{ github.workspace }}":/work -w /work ubuntu:22.04 bash -lc "/work/.github/scripts/arm_build.sh"
 
       - name: Upload shockolate-arm64.zip
         uses: actions/upload-artifact@v4
